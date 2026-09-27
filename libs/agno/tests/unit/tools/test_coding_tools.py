@@ -56,6 +56,29 @@ def test_read_file_truncation():
         assert "line 49" not in result
 
 
+def test_read_file_footer_tracks_truncated_lines():
+    with tempfile.TemporaryDirectory() as tmp_dir:
+        base_dir = Path(tmp_dir)
+        (base_dir / "big.txt").write_text("\n".join(f"line {i}" for i in range(20)))
+        tools = CodingTools(base_dir=base_dir, max_lines=3)
+
+        result = tools.read_file("big.txt", offset=4, limit=10)
+        assert "7 | line 6" in result
+        assert "8 | line 7" not in result
+        assert "[Showing lines 5-7 of 20 total]" in result
+
+
+def test_read_file_footer_tracks_byte_truncation():
+    with tempfile.TemporaryDirectory() as tmp_dir:
+        base_dir = Path(tmp_dir)
+        (base_dir / "big.txt").write_text("\n".join(f"line {i}" for i in range(20)))
+        tools = CodingTools(base_dir=base_dir, max_lines=20, max_bytes=24)
+
+        result = tools.read_file("big.txt", offset=4, limit=10)
+        assert "[Showing lines 5-5 of 20 total]" in result
+        assert "7 | line 6" not in result
+
+
 def test_read_file_not_found():
     """Test reading a nonexistent file returns error."""
     with tempfile.TemporaryDirectory() as tmp_dir:
@@ -318,6 +341,29 @@ def test_grep_basic():
         result = tools.grep("def ")
         assert "hello" in result
         assert "world" in result
+
+
+def test_grep_pattern_starting_with_dash():
+    with tempfile.TemporaryDirectory() as tmp_dir:
+        base_dir = Path(tmp_dir)
+        (base_dir / "cli.py").write_text("parser.add_argument('--timeout')\n")
+        tools = CodingTools(base_dir=base_dir, enable_grep=True)
+
+        result = tools.grep("--timeout")
+        assert "cli.py:1:parser.add_argument('--timeout')" in result
+
+
+def test_grep_exact_limit_does_not_claim_truncation():
+    with tempfile.TemporaryDirectory() as tmp_dir:
+        base_dir = Path(tmp_dir)
+        (base_dir / "one.txt").write_text("match\n")
+        tools = CodingTools(base_dir=base_dir, enable_grep=True)
+
+        result = tools.grep("match", limit=1)
+        assert "one.txt:1:match" in result
+        assert "[Results limited" not in result
+        (base_dir / "one.txt").write_text("match\nmatch\n")
+        assert "[Results limited to 1 matches]" in tools.grep("match", limit=1)
 
 
 def test_grep_ignore_case():
