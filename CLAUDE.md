@@ -256,3 +256,15 @@ Agno-specific checks to always verify:
 - No agent creation inside loops (agents should be reused)
 - Coding patterns in this file are followed
 - No f-strings for print lines where there are no variables
+
+---
+
+## Cursor Cloud specific instructions
+
+The Cloud Agent venv is created by `./scripts/test_setup.sh` (Python 3.12, `uv` 0.12.19 on `~/.local/bin`). That script, and `./scripts/dev_setup.sh`, exit immediately when `VIRTUAL_ENV` is set and delete `.venv` before recreating it. Run them as `env -u VIRTUAL_ENV ./scripts/test_setup.sh`.
+
+`test_setup.sh` installs `agno[tests]`, which is the set `pytest libs/agno/tests/unit` imports. `./scripts/dev_setup.sh` is the smaller day-to-day venv and does not include those extras, so a unit-suite run after it fails at collection. Do not run `dev_setup.sh` on top of the test venv unless you mean to replace it.
+
+Set `AGNO_TELEMETRY=false` before tests. Provider API keys are not required for the unit suite. Postgres is optional; adapter tests skip when nothing is listening. CI uses `agnohq/pgvector:18` published on port 5532 with database `ai`, user `ai`, password `ai`. The full unit tree is large and CI splits it into five groups, ignoring `libs/agno/tests/unit/models/litellm`, `libs/agno/tests/unit/tools/test_crawl4ai.py`, and `libs/agno/tests/unit/tools/test_scrapegraph.py`.
+
+`./scripts/validate.sh` is the lint and type check (`ruff` and `mypy`). AgentOS is started on demand (`agent_os.serve`, default port 7777); `GET /health` does not need a model API key.
